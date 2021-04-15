@@ -9,7 +9,7 @@
 
 The goal of this project is to create a DDPG agent able to control a ball balancer in order to move the ball with the desired trajectory.
 
-![alt text](misc/bb.png)
+![alt text](misc/bb.PNG)
 
 ## Technologies used
 
