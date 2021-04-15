@@ -34,8 +34,8 @@ Here is the heigh level control loop.
 ![alt text](misc/controlArchi.png)
 
 Given this choice of architecture, the project can be devided in the main parts :
-* Plateau control and simulation [Dedicated page](/https://github.com/BenInTheBox/DRL-AI-Robotics/tree/main/python_code/src/motor_simulation)
-* Ball control and simualtion [Dedicated page](/https://github.com/BenInTheBox/DRL-AI-Robotics/tree/main/python_code/src/ball_simulation)
+* Plateau control and simulation [Dedicated page](https://github.com/BenInTheBox/DRL-AI-Robotics/tree/main/python_code/src/motor_simulation)
+* Ball control and simualtion [Dedicated page](https://github.com/BenInTheBox/DRL-AI-Robotics/tree/main/python_code/src/ball_simulation)
 
 A simulation is needed for every component of the system because the controllers training need that.
 
