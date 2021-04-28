@@ -1,28 +1,45 @@
 import numpy as np
 import torch
+import json
 
-from torch import relu, tanh
+from torch import relu
 from torch.autograd import Variable
 from sklearn.metrics import r2_score
+from ..constants import MOTOR_SPEED_SCALING
 
 
-class Ext(torch.nn.Module):
+class Plateau(torch.nn.Module):
     def __init__(self):
-        super(Ext, self).__init__()
+        super(Plateau, self).__init__()
 
     def step(self, u: float, s: float) -> float:
-        x = torch.tensor([[u, s]])
+        x = torch.tensor([[u, s / MOTOR_SPEED_SCALING]])
         return self.forward(x)[0]
 
     def recurcive_predict(self, s_0: float, u: np.ndarray) -> np.ndarray:
         s = np.zeros_like(u)
         s[0] = s_0
         for i in range(1, len(u)):
-            s[i] = self.step(u[i - 1], s[i - 1] / 100.)
+            s[i] = self.step(u[i - 1], s[i - 1] / MOTOR_SPEED_SCALING)
         return s
 
 
-class PlateauNet1Hidden(Ext):
+class PlateauPhy(Plateau):
+
+    def __init__(self):
+        super(PlateauPhy, self).__init__()
+        with open('src/data/motor.json') as json_file:
+            data = json.load(json_file)
+            print(data)
+        self.speed_scaling: float = data['speed_scaling']
+        self.u_coef: float = data['phy_i_coef_u']
+        self.s_coef: float = data['phy_i_coef_s']
+
+    def step(self, u: float, s: float) -> float:
+        return self.u_coef * u + self.s_coef / self.speed_scaling * s
+
+
+class PlateauNet1Hidden(Plateau):
     def __init__(self, n_inputs: int, n_hidden_1: int, n_output: int):
         super(PlateauNet1Hidden, self).__init__()
 
@@ -32,10 +49,10 @@ class PlateauNet1Hidden(Ext):
     def forward(self, x):
         x = relu(self.hidden_1(x))
         x = self.predict(x)
-        return x
+        return x * 10
 
 
-class PlateauNet2Hidden(Ext):
+class PlateauNet2Hidden(Plateau):
     def __init__(self, n_inputs: int, n_hidden_1: int, n_hidden_2: int, n_output: int):
         super(PlateauNet2Hidden, self).__init__()
 
@@ -50,8 +67,8 @@ class PlateauNet2Hidden(Ext):
         return x * 10
 
 
-def train_model(model: torch.nn.Module, x: Variable, y: Variable, n_epoch: int = 200) -> torch.nn.Module:
-    optimizer = torch.optim.SGD(model.parameters(), lr=0.00001, momentum=0.5)
+def train_plateau_model(model: torch.nn.Module, x: Variable, y: Variable, n_epoch: int = 200) -> torch.nn.Module:
+    optimizer = torch.optim.SGD(model.parameters(), lr=0.000001, momentum=0.5)
     loss_func = torch.nn.MSELoss()
 
     for t in range(n_epoch):
