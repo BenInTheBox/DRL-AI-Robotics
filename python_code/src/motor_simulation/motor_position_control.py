@@ -5,7 +5,7 @@ import pygad
 import numpy as np
 
 from pygad import torchga
-from .neural_net_controller import MotorController
+from .neural_net_controller import MotorController, PidController, NnController
 from .simulation import ModelEvaluator
 
 
@@ -29,13 +29,18 @@ def callback_generation(ga_instance):
     print("Fitness    = {fitness}".format(fitness=ga_instance.best_solution()[1]))
 
 
-def train_motor_controller(target_trajectory: np.ndarray, nb_generation: int, population: int):
+def train_motor_controller(target_trajectory: np.ndarray, nb_generation: int, population: int, controller_type: str = 'pid',
+                           hidden_size: int = 9):
+    model: MotorController
+    if controller_type == 'pid':
+        model = PidController(9, 1)
+    elif controller_type == 'nn':
+        model = NnController(9, hidden_size, 1)
 
-    model: MotorController = MotorController(9, 9, 1)
     torch_ga = torchga.TorchGA(model=model,
                                num_solutions=population)
 
-    num_parents_mating = 5
+    num_parents_mating = 6
     initial_population = torch_ga.population_weights
     parent_selection_type = "sss"
     crossover_type = "single_point"
