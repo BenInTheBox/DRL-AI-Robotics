@@ -1,18 +1,18 @@
 import numpy as np
 import torch
 
-from torch import relu
+from torch import relu, tanh
 from torch.autograd import Variable
 from sklearn.metrics import r2_score
-from ..constants import DT
+from ..constants import DT, MAX_X, MAX_Y
 
 
-class Plateau(torch.nn.Module):
+class Ball(torch.nn.Module):
     def __init__(self):
-        super(Plateau, self).__init__()
+        super(Ball, self).__init__()
 
     def step(self, d_x: float, d_y: float, angle_x: float, angle_y: float) -> float:
-        x = torch.tensor([[d_x * 6., d_y * 6., angle_x / 25., angle_y / 25.]])
+        x = torch.tensor([[d_x, d_y, angle_x * 10., angle_y * 10.]])
         return self.forward(x)[0]
 
     def recurcive_predict(self, x_0: float, y_0: float, d_x_0: float, d_y_0: float, inputs: np.ndarray) -> np.ndarray:
@@ -28,12 +28,12 @@ class Plateau(torch.nn.Module):
             d_x = pred[0].item()
             d_y = pred[1].item()
             print(d_x, d_y)
-            pos[i, 0] = pos[i - 1, 0] + d_x * DT
-            pos[i, 1] = pos[i - 1, 1] + d_y * DT
+            pos[i, 0] = max(min(pos[i - 1, 0] + d_x * DT, MAX_X), -MAX_X)
+            pos[i, 1] = max(min(pos[i - 1, 1] + d_y * DT, MAX_Y), -MAX_Y)
         return pos
 
 
-class BallNet1Hidden(Plateau):
+class BallNet1Hidden(Ball):
     def __init__(self, n_inputs: int, n_hidden_1: int, n_output: int):
         super(BallNet1Hidden, self).__init__()
 
@@ -41,12 +41,12 @@ class BallNet1Hidden(Plateau):
         self.predict = torch.nn.Linear(n_hidden_1, n_output)
 
     def forward(self, x):
-        x = relu(self.hidden_1(x))
+        x = tanh(self.hidden_1(x))
         x = self.predict(x)
         return x * 6.
 
 
-class BallNet2Hidden(Plateau):
+class BallNet2Hidden(Ball):
     def __init__(self, n_inputs: int, n_hidden_1: int, n_hidden_2: int, n_output: int):
         super(BallNet2Hidden, self).__init__()
 
@@ -55,8 +55,8 @@ class BallNet2Hidden(Plateau):
         self.predict = torch.nn.Linear(n_hidden_2, n_output)
 
     def forward(self, x):
-        x = relu(self.hidden_1(x))
-        x = relu(self.hidden_2(x))
+        x = tanh(self.hidden_1(x))
+        x = tanh(self.hidden_2(x))
         x = self.predict(x)
         return x * 6.
 
@@ -71,6 +71,8 @@ def train_ball_model(model: torch.nn.Module, x: Variable, y: Variable, n_epoch: 
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
+        if t % 100. == 0.:
+            print(loss)
     print(loss, r2_score(y_hat.detach().numpy(), y.detach().numpy()))
 
     return model
