@@ -11,8 +11,12 @@ class Ball(torch.nn.Module):
     def __init__(self):
         super(Ball, self).__init__()
 
-    def step(self, d_x: float, d_y: float, angle_x: float, angle_y: float) -> float:
-        x = torch.tensor([[d_x, d_y, angle_x * 10., angle_y * 10.]])
+    def step(self, x: float, y: float, d_x: float, d_y: float, angle_x: float, angle_y: float) -> float:
+        top = 1. if y > 0 else 0.
+        right = 1. if x > 0. else 0.
+        x = torch.tensor(
+            [[int(top and right), int(top and not right), int(not top and right), int(not top and not right), d_x, d_y,
+              angle_x * 10., angle_y * 10.]])
         return self.forward(x)[0]
 
     def recurcive_predict(self, x_0: float, y_0: float, d_x_0: float, d_y_0: float, inputs: np.ndarray) -> np.ndarray:
@@ -24,10 +28,9 @@ class Ball(torch.nn.Module):
         d_y = d_y_0
 
         for i in range(1, inputs.shape[0]):
-            pred = self.step(d_x, d_y, inputs[i - 1, 0], inputs[i - 1, 1])
-            d_x = pred[0].item()
-            d_y = pred[1].item()
-            print(d_x, d_y)
+            pred = self.step(pos[i - 1, 0], pos[i - 1, 1], d_x, d_y, inputs[i - 1, 0], inputs[i - 1, 1])
+            d_x += pred[0].item()
+            d_y += pred[1].item()
             pos[i, 0] = max(min(pos[i - 1, 0] + d_x * DT, MAX_X), -MAX_X)
             pos[i, 1] = max(min(pos[i - 1, 1] + d_y * DT, MAX_Y), -MAX_Y)
         return pos
@@ -41,9 +44,9 @@ class BallNet1Hidden(Ball):
         self.predict = torch.nn.Linear(n_hidden_1, n_output)
 
     def forward(self, x):
-        x = tanh(self.hidden_1(x))
+        x = relu(self.hidden_1(x))
         x = self.predict(x)
-        return x * 6.
+        return x / 50.
 
 
 class BallNet2Hidden(Ball):
@@ -55,14 +58,14 @@ class BallNet2Hidden(Ball):
         self.predict = torch.nn.Linear(n_hidden_2, n_output)
 
     def forward(self, x):
-        x = tanh(self.hidden_1(x))
-        x = tanh(self.hidden_2(x))
+        x = relu(self.hidden_1(x))
+        x = relu(self.hidden_2(x))
         x = self.predict(x)
-        return x * 6.
+        return x / 50.
 
 
 def train_ball_model(model: torch.nn.Module, x: Variable, y: Variable, n_epoch: int = 200) -> torch.nn.Module:
-    optimizer = torch.optim.SGD(model.parameters(), lr=0.0001, momentum=0.2)
+    optimizer = torch.optim.SGD(model.parameters(), lr=0.00001, momentum=0.5)
     loss_func = torch.nn.MSELoss()
 
     for t in range(n_epoch):
