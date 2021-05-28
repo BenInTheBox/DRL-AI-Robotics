@@ -1,4 +1,14 @@
-DT: float = 0.002
+DT: float = 0.02
 MOTOR_SPEED_SCALING: float = 20000
-MAX_X: float = 0.9
-MAX_Y: float = 0.6
+MAX_X: float = 0.09
+MAX_Y: float = 0.06
+
+MOTOR_ERROR_SCALING: float = 1. / 10.
+MOTOR_D_ERROR_SCALING: float = DT / 25.
+MOTOR_INTEGRAL_ERROR_SCALING: float = 1. / 5.
+
+BALL_ERROR_SCALING: float = 1. / MAX_Y
+BALL_D_ERROR_SCALING: float = 1. / MAX_Y
+BALL_INTEGRAL_ERROR_SCALING: float = 3. / MAX_Y
+
+MAX_ANGLE: float = 10.

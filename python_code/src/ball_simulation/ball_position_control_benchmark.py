@@ -5,13 +5,13 @@ import pygad
 import numpy as np
 
 from pygad import torchga
-from .neural_net_controller import MotorController, PidController, NnController
-from .simulation import ModelEvaluator
+from ..ball_balancer import BenchmarkEvaluator
+from ..DDPG import BallController, PidController
 
 
-def fitness_fn_generator(model: MotorController, target_trajectory: np.ndarray) -> Callable:
+def fitness_fn_generator(model: BallController, target_trajectory: np.ndarray) -> Callable:
     global torch_ga
-    evaluator: ModelEvaluator = ModelEvaluator(target_trajectory)
+    evaluator: BenchmarkEvaluator = BenchmarkEvaluator(target_trajectory)
 
     def fitness_func(solution, sol_idx) -> float:
         model_weights_dict = torchga.model_weights_as_dict(model=model,
@@ -29,23 +29,18 @@ def callback_generation(ga_instance):
     print("Fitness    = {fitness}".format(fitness=ga_instance.best_solution()[1]))
 
 
-def train_motor_controller(target_trajectory: np.ndarray, nb_generation: int, population: int, controller_type: str = 'pid',
-                           hidden_size: int = 9):
-    model: MotorController
-    if controller_type == 'pid':
-        model = PidController(3, 1)
-    elif controller_type == 'nn':
-        model = NnController(3, hidden_size, 1)
+def train_ball_controller(target_trajectory: np.ndarray, nb_generation: int, population: int):
+    model = PidController(3, 1)
 
     torch_ga = torchga.TorchGA(model=model,
                                num_solutions=population)
 
-    num_parents_mating = 6
+    num_parents_mating = 5
     initial_population = torch_ga.population_weights
     parent_selection_type = "sss"
     crossover_type = "single_point"
     mutation_type = "random"
-    mutation_percent_genes = 50
+    mutation_percent_genes = 40
     keep_parents = 3
 
     ga_instance = pygad.GA(num_generations=nb_generation,
@@ -57,7 +52,11 @@ def train_motor_controller(target_trajectory: np.ndarray, nb_generation: int, po
                            mutation_type=mutation_type,
                            mutation_percent_genes=mutation_percent_genes,
                            keep_parents=keep_parents,
-                           on_generation=callback_generation)
+                           on_generation=callback_generation,
+                           init_range_low=0.,
+                           init_range_high=2.,
+                           gene_space={'low': 0., 'high': 2.},
+                           allow_duplicate_genes=False)
 
     ga_instance.run()
 
