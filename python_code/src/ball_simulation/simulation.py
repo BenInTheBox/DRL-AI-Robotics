@@ -1,10 +1,7 @@
-from typing import Tuple
-
 import json
 import numpy as np
-from numpy import ndarray
 
-from ..constants import DT
+from ..constants import DT, MAX_X
 
 
 class BallSimulation:
@@ -15,10 +12,9 @@ class BallSimulation:
             data = json.load(json_file)
             print(data)
 
-        self.a = np.ndarray = np.array(data['phy_i_coef'])
+        self.a: np.ndarray = np.array(data['phy_i_coef'])
         self.a[:, :2] = self.a[:, :2] * data['s_scaling']
         self.a[:, 2:] = self.a[:, 2:] * data['sin_scaling']
-        self.b = np.ndarray = np.array(data['phy_i_bias'])
 
         self.x: np.ndarray = np.array([0., 0.])
         self.d_x: np.ndarray = np.array([0., 0.])
@@ -37,5 +33,9 @@ class BallSimulation:
         :param angle_y: Current input
         """
         x = np.array([self.d_x[0], self.d_x[1], np.sin(np.pi / 180. * angle_x), np.sin(np.pi / 180. * angle_y)])
-        self.d_x += np.dot(self.a, x) + self.b
-        self.x += self.d_x * DT
+        self.d_x = self.d_x + np.dot(self.a, x)
+        #self.d_x[self.x > MAX_X] = 0.  # MAX_X
+        #self.d_x[self.x < -MAX_X] = 0.  # -MAX_X
+        self.x = self.x + self.d_x * DT
+        #self.x[self.x > MAX_X] = MAX_X
+        #self.x[self.x < -MAX_X] = -MAX_X

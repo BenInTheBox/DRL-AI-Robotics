@@ -16,7 +16,7 @@ class Ball(torch.nn.Module):
         right = 1. if x > 0. else 0.
         x = torch.tensor(
             [[int(top and right), int(top and not right), int(not top and right), int(not top and not right), d_x, d_y,
-              angle_x * 10., angle_y * 10.]])
+              angle_x * 7., angle_y * 7.]])
         return self.forward(x)[0]
 
     def recurcive_predict(self, x_0: float, y_0: float, d_x_0: float, d_y_0: float, inputs: np.ndarray) -> np.ndarray:

@@ -2,11 +2,7 @@ import torch
 
 from torch import relu
 from numpy import abs, sign
-from ..constants import DT
-
-ERROR_SCALING: float = 1. / 500.
-D_ERROR_SCALING: float = DT / 100.
-INTEGRAL_ERROR_SCALING: float = 1. / 5.
+from ..constants import MOTOR_ERROR_SCALING, MOTOR_D_ERROR_SCALING, MOTOR_INTEGRAL_ERROR_SCALING
 
 
 class MotorController(torch.nn.Module):
@@ -15,20 +11,14 @@ class MotorController(torch.nn.Module):
         super(MotorController, self).__init__()
 
     def step(self, error: float, d_error: float, integral_error: float) -> float:
-        error = error * ERROR_SCALING
-        d_error = d_error * D_ERROR_SCALING
-        integral_error = integral_error * INTEGRAL_ERROR_SCALING
+        error = error * MOTOR_ERROR_SCALING
+        d_error = d_error * MOTOR_D_ERROR_SCALING
+        integral_error = integral_error * MOTOR_INTEGRAL_ERROR_SCALING
 
         x = torch.tensor([[
             error,
-            error ** 2,
-            sign(error) * abs(error) ** 0.5,
             d_error,
-            d_error ** 2,
-            sign(d_error) * abs(d_error) ** 0.5,
             integral_error,
-            integral_error ** 2,
-            sign(integral_error) * abs(integral_error) ** 0.5
         ]])
         return self.forward(x)[0].item()
 
