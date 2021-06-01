@@ -10,11 +10,11 @@
     "actor_critic":	"PidActorCritic",
     "batch_size":	2500,
     "env_fn":	"BBEnvPid",
-    "epochs":	13,
+    "epochs":	200,
     "exp_name":	"test",
     "gamma":	0.99,
     "logger":	{
-        "<spinup.utils.logx.EpochLogger object at 0x7fe3ac522cc0>":	{
+        "<spinup.utils.logx.EpochLogger object at 0x7f45417ec390>":	{
             "epoch_dict":	{},
             "exp_name":	"test",
             "first_row":	true,

@@ -29,11 +29,14 @@ def trajectory_gen(length: int) -> np.ndarray:
 
 
 # Reward functions
-def linear_reward(error: np.ndarray, d_error: np.ndarray) -> float:
-    if (-d_error * DT < error).all():
-        return - np.sum(np.sign(error) * d_error * BALL_D_ERROR_SCALING)
-    else:
-        return 1.
+def linear_reward(error: np.ndarray, d_error: np.ndarray, target: np.ndarray) -> float:
+    # if (-d_error * DT < error).any():
+    return - np.sum(np.sign(error) * d_error * BALL_D_ERROR_SCALING)
+
+
+def linear_penality_reward(error: np.ndarray, d_error: np.ndarray, target: np.ndarray) -> float:
+    # if (-d_error * DT < error).any():
+    return - np.sum(np.sign(error) * d_error * BALL_D_ERROR_SCALING) - np.sum(np.abs(target / MAX_ANGLE))
 
 
 # Environement "trait"
@@ -60,7 +63,7 @@ class BBEnvBasis(gym.Env, BbSimulation, ABC):
         # Traing parameters
         self.max_iter: int = int(10. // DT)
         self.iter: int = 0
-        self.reward: Callable = linear_reward
+        self.reward: Callable = linear_penality_reward
 
         self.reset()
 
@@ -124,7 +127,7 @@ class BBEnv(BBEnvBasis):
         self.step_bb(action * MAX_ANGLE)
         self.state = (self.state[0], self.ball.x, self.ball.d_x)
         self.observe()
-        reward: float = self.reward(self.observation[0:2], self.observation[2:4])
+        reward: float = self.reward(self.observation[0:2], self.observation[2:4], action * MAX_ANGLE)
 
         self.iter += 1
         done: bool = (self.iter >= self.max_iter) or np.any(np.abs(self.ball.x) > 2 * MAX_X)
@@ -187,7 +190,7 @@ class BBEnvPid(BBEnvBasis):
         # Traing parameters
         self.max_iter: int = int(10. // DT)
         self.iter: int = 0
-        self.reward: Callable = linear_reward
+        self.reward: Callable = linear_penality_reward
 
         self.reset()
 
@@ -197,10 +200,11 @@ class BBEnvPid(BBEnvBasis):
         obs = self.scaled_obs()
         u_x = np.sum(-action[[0, 2, 4]] * obs[[0, 2, 4]])
         u_y = np.sum(-action[[1, 3, 5]] * obs[[1, 3, 5]])
-        self.step_bb(np.tanh(np.array([u_x, u_y])) * MAX_ANGLE)
+        angles = np.tanh(np.array([u_x, u_y])) * MAX_ANGLE
+        self.step_bb(angles)
         self.state = (self.state[0], self.ball.x, self.ball.d_x)
         self.observe()
-        reward: float = self.reward(self.observation[0:2], self.observation[2:4])
+        reward: float = self.reward(self.observation[0:2], self.observation[2:4], angles)
 
         self.iter += 1
         done: bool = (self.iter >= self.max_iter) or np.any(np.abs(self.ball.x) > 2 * MAX_X)
