@@ -4,8 +4,6 @@ from ..motor_simulation.simulation import MotorSimulation
 from ..motor_simulation.pid import Pid
 from ..ball_simulation.simulation import BallSimulation
 from ..constants import DT
-from ..DDPG import BallController
-from typing import Tuple
 
 
 class BbSimulation:
