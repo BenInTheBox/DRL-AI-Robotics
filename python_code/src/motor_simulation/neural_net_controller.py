@@ -1,8 +1,8 @@
 import torch
 
-from torch import relu
+from torch import relu, tanh
 from numpy import abs, sign
-from ..constants import MOTOR_ERROR_SCALING, MOTOR_D_ERROR_SCALING, MOTOR_INTEGRAL_ERROR_SCALING
+from ..constants import MOTOR_ERROR_SCALING, MOTOR_D_ERROR_SCALING, MOTOR_INTEGRAL_ERROR_SCALING, MAX_MOTOR_U
 
 
 class MotorController(torch.nn.Module):
@@ -27,10 +27,10 @@ class PidController(MotorController):
     def __init__(self, n_inputs: int, n_output: int):
         super(PidController, self).__init__()
 
-        self.predict = torch.nn.Linear(n_inputs, n_output)
+        self.predict = torch.nn.Linear(n_inputs, n_output, bias=False)
 
     def forward(self, x):
-        x = self.predict(x)
+        x = tanh(self.predict(x)) * MAX_MOTOR_U
         return x
 
 
@@ -39,9 +39,9 @@ class NnController(MotorController):
         super(NnController, self).__init__()
 
         self.hidden_1 = torch.nn.Linear(n_inputs, n_hidden_1)
-        self.predict = torch.nn.Linear(n_hidden_1, n_output)
+        self.predict = torch.nn.Linear(n_hidden_1, n_output, bias=False)
 
     def forward(self, x):
         x = relu(self.hidden_1(x))
-        x = self.predict(x)
+        x = tanh(self.predict(x)) * MAX_MOTOR_U
         return x

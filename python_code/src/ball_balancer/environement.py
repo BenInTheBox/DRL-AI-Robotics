@@ -350,6 +350,8 @@ class BBEnvPid(BBEnvBasis):
 
         self.reset()
 
+        self.last_angles = np.array([0., 0.])
+
         print(self.state)
 
     def step(self, action):
@@ -357,6 +359,7 @@ class BBEnvPid(BBEnvBasis):
         u_x = np.sum(action[[0, 2, 4]] * obs[[0, 2, 4]])
         u_y = np.sum(action[[1, 3, 5]] * obs[[1, 3, 5]])
         angles = np.tanh(np.array([u_x, u_y])) * MAX_ANGLE
+        self.last_angles = angles
         self.step_bb(angles)
         self.state = (self.state[0], self.ball.x, self.ball.d_x)
         self.observe()
@@ -399,9 +402,10 @@ class BBEnvPid(BBEnvBasis):
                 [error[0, i], error[1, i], d_error[0], d_error[1], integral[0], integral[1]]
             )
             self.observation = obs
+            scaled_obs = self.scaled_obs()
             # print(obs)
 
-            pid_weights = model.act(torch.as_tensor(self.scaled_obs(), dtype=torch.float32))
+            pid_weights = model.act(torch.as_tensor(scaled_obs, dtype=torch.float32))
             pid_kp[0, i] = pid_weights[0]
             pid_kp[1, i] = pid_weights[1]
             pid_kd[0, i] = pid_weights[2]
@@ -410,8 +414,8 @@ class BBEnvPid(BBEnvBasis):
             pid_ki[1, i] = pid_weights[5]
 
             self.step(pid_weights)
-            u_x = np.sum(pid_weights[[0, 2, 4]] * obs[[0, 2, 4]])
-            u_y = np.sum(pid_weights[[1, 3, 5]] * obs[[1, 3, 5]])
+            u_x = np.sum(pid_weights[[0, 2, 4]] * scaled_obs[[0, 2, 4]])
+            u_y = np.sum(pid_weights[[1, 3, 5]] * scaled_obs[[1, 3, 5]])
             u[:, i] = np.tanh(np.array([u_x, u_y])) * MAX_ANGLE
             self.ema = ema
             self.dema = dema

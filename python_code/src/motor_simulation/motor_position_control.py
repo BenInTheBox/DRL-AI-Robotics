@@ -57,7 +57,12 @@ def train_motor_controller(target_trajectory: np.ndarray, nb_generation: int, po
                            mutation_type=mutation_type,
                            mutation_percent_genes=mutation_percent_genes,
                            keep_parents=keep_parents,
-                           on_generation=callback_generation)
+                           on_generation=callback_generation,
+                           init_range_low=0.,
+                           init_range_high=2.,
+                           gene_space={'low': 0., 'high': 2.},
+                           allow_duplicate_genes=False
+    )
 
     ga_instance.run()
 
