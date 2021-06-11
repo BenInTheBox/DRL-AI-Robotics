@@ -12,7 +12,7 @@ class BallController(torch.nn.Module):
     def step(self, error: float, d_error: float, integral_error: float) -> float:
         error = error * BALL_ERROR_SCALING
         d_error = d_error * BALL_D_ERROR_SCALING
-        integral_error = max(integral_error * BALL_INTEGRAL_ERROR_SCALING, 10.)
+        integral_error = integral_error * BALL_INTEGRAL_ERROR_SCALING
 
         x = torch.tensor([[
             error,
