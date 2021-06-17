@@ -35,6 +35,24 @@ def trajectory_gen(length: int) -> np.ndarray:
 
 
 # Reward functions
+def linear_e_reward(error: np.ndarray, d_error: np.ndarray, target: np.ndarray, w) -> float:
+    return np.tanh(1. - (np.sum(np.abs(error)) * 30.) ** w)
+
+
+def linear_e_reward_penality(error: np.ndarray, d_error: np.ndarray, target: np.ndarray, w) -> float:
+    return (2. * w + np.tanh(1. - (np.sum(np.abs(error)) * 30.) ** 0.5) - w * np.sum(np.abs(target))) / (
+            1. + 2. * w)
+
+
+def quadratic_e_reward(error: np.ndarray, d_error: np.ndarray, target: np.ndarray, w) -> float:
+    return np.tanh(1. - (np.sum(np.float_power(error * 10., 2) ** w)))
+
+
+def quadratic_e_reward_penality(error: np.ndarray, d_error: np.ndarray, target: np.ndarray, w) -> float:
+    return (2. * w + np.tanh(1. - (np.sum(np.float_power(error * 10., 2)))) - w * np.sum(np.abs(target))) / (
+            1. + 2. * w)
+
+
 def linear_de_reward(error: np.ndarray, d_error: np.ndarray, target: np.ndarray, w) -> float:
     if (d_error[0] * DT + error[0]) * np.sign(error[0]) < 0.:
         d_error[0] = - error[0] - d_error[0] * DT
@@ -44,31 +62,24 @@ def linear_de_reward(error: np.ndarray, d_error: np.ndarray, target: np.ndarray,
 
 
 def linear_de_penality_reward(error: np.ndarray, d_error: np.ndarray, target: np.ndarray, w) -> float:
-    # if (-d_error * DT < error).any():
-    return np.tanh(
-        0.5 * w * - np.sum(np.sign(error) * d_error * BALL_D_ERROR_SCALING) - np.sum(np.abs(target / MAX_ANGLE)))
-
-
-def linear_e_reward(error: np.ndarray, d_error: np.ndarray, target: np.ndarray, w) -> float:
-    return np.tanh(1. - (np.sum(np.abs(error)) * 30.) ** w)
-
-
-def quadratic_e_reward(error: np.ndarray, d_error: np.ndarray, target: np.ndarray, w) -> float:
-    return np.tanh(1. - (np.sum(np.float_power(error * 10., 2) ** w)))
-
-
-def quadratic_e_reward_penality(error: np.ndarray, d_error: np.ndarray, target: np.ndarray, w) -> float:
-    return (2. * w + np.tanh(1. - (np.sum(np.float_power(error * 10., 2)))) - w * np.sum(np.abs(target) / MAX_ANGLE)) / (
-                1. + 2. * w)
+    if (d_error[0] * DT + error[0]) * np.sign(error[0]) < 0.:
+        d_error[0] = - error[0] - d_error[0] * DT
+    if (d_error[1] * DT + error[1]) * np.sign(error[1]) < 0.:
+        d_error[1] = - error[1] - d_error[1] * DT
+    return (2. * w + np.tanh(- np.sum(np.sign(error) * d_error * DT * BALL_D_ERROR_SCALING * 15.)) - w * np.sum(
+        np.abs(target))) / (1. + 2. * w)
 
 
 def test_reward():
     error = np.arange(-MAX_X, 0., 0.001)
     w = np.arange(0.3, 0.9, 0.1)
-    target = np.arange(0., MAX_ANGLE, 1)
+    target = np.arange(0., 2., 0.02)
     d_error = np.arange(-MAX_X, MAX_X, 0.002)
     x_error, y_error = np.meshgrid(error, error)
+    x_error_sum, angle_sum = np.meshgrid(error, target)
+    x_d_error_sum, angle_sum_d = np.meshgrid(d_error, target)
 
+    # Linear reward
     z = [np.array([linear_e_reward(np.array([x, x]), 0., 0., weight) for x in error]) for weight in w]
     Z = np.array([[linear_e_reward(np.array([x, y]), 0., 0., 0.6) for x, y in zip(x_row, y_row)] for x_row, y_row in
                   zip(x_error, y_error)])
@@ -92,6 +103,23 @@ def test_reward():
     fig.colorbar(surf, shrink=0.5, aspect=5)
     plt.show()
 
+    # Linear penality
+    Z = np.array(
+        [[linear_e_reward_penality(np.array([x, x]), 0., np.array([y, y]), 0.3) for x, y in zip(x_row, y_row)] for
+         x_row, y_row in
+         zip(x_error_sum, angle_sum)])
+    fig, ax = plt.subplots(subplot_kw={"projection": "3d"})
+    ax.view_init(30, 120)
+    # Plot the surface.
+    surf = ax.plot_surface(x_error_sum, angle_sum, Z, cmap=cm.coolwarm,
+                           linewidth=0, antialiased=False)
+    ax.set_xlabel(r'$\sum_{}^{}errors$', fontsize=20)
+    ax.set_ylabel(r'$\sum_{}^{}angles$', fontsize=20)
+    ax.set_zlabel('$r_{t}$', fontsize=20)
+    fig.colorbar(surf, shrink=0.5, aspect=5)
+    plt.show()
+
+    # Quadratic reward
     w = np.arange(0.8, 1.5, 0.2)
     z = [np.array([quadratic_e_reward(np.array([x, x]), 0., 0., weight) for x in error]) for weight in w]
     Z = np.array([[quadratic_e_reward(np.array([x, y]), 0., 0., 1.) for x, y in zip(x_row, y_row)] for x_row, y_row in
@@ -116,9 +144,9 @@ def test_reward():
     fig.colorbar(surf, shrink=0.5, aspect=5)
     plt.show()
 
-    x_error_sum, angle_sum = np.meshgrid(error, target)
+    # Quadratic penality
     Z = np.array(
-        [[quadratic_e_reward_penality(np.array([x, x]), 0., np.array([y, y]), 1) for x, y in zip(x_row, y_row)] for
+        [[quadratic_e_reward_penality(np.array([x, x]), 0., np.array([y, y]), 0.3) for x, y in zip(x_row, y_row)] for
          x_row, y_row in
          zip(x_error_sum, angle_sum)])
     fig, ax = plt.subplots(subplot_kw={"projection": "3d"})
@@ -132,6 +160,7 @@ def test_reward():
     fig.colorbar(surf, shrink=0.5, aspect=5)
     plt.show()
 
+    # De reward
     e = np.array([0.5, 0.5])
     w = np.arange(5, 35, 10)
     z = [np.array([linear_de_reward(e, np.array([x, x]), 0., weight) for x in d_error]) for weight in w]
@@ -143,6 +172,22 @@ def test_reward():
     plt.ylabel('reward')
     plt.title('Linear d error reward 1D')
     plt.legend()
+    plt.show()
+
+    # De penality
+    Z = np.array(
+        [[linear_de_penality_reward(e, np.array([x, x]), np.array([y, y]), 0.3) for x, y in zip(x_row, y_row)] for
+         x_row, y_row in
+         zip(x_d_error_sum, angle_sum_d)])
+    fig, ax = plt.subplots(subplot_kw={"projection": "3d"})
+    ax.view_init(30, 120)
+    # Plot the surface.
+    surf = ax.plot_surface(x_error_sum, angle_sum, Z, cmap=cm.coolwarm,
+                           linewidth=0, antialiased=False)
+    ax.set_xlabel(r'$\sum_{}^{}errors$', fontsize=20)
+    ax.set_ylabel(r'$\sum_{}^{}angles$', fontsize=20)
+    ax.set_zlabel('$r_{t}$', fontsize=20)
+    fig.colorbar(surf, shrink=0.5, aspect=5)
     plt.show()
 
 
@@ -175,7 +220,7 @@ class BBEnvBasis(gym.Env, BbSimulation, ABC):
         self.state = None
         self.observation = None
         self.ema: np.ndarray = np.array([0., 0.])
-        self.dema: np.ndarray = np.array([0., 0.])
+        self.ema_ema: np.ndarray = np.array([0., 0.])
         self.real_error: np.ndarray = np.array([0., 0.])
         self.real_d_error: np.ndarray = np.array([0., 0.])
         self.alpha: float = 2. / (1. + FILTERING_PERIOD)
@@ -202,7 +247,7 @@ class BBEnvBasis(gym.Env, BbSimulation, ABC):
         self.observe()
         self.iter = 0
         self.ema = self.state[1]
-        self.dema = self.state[1]
+        self.ema_ema = self.state[1]
         self.real_error = np.array([0., 0.])
         self.real_d_error = np.array([0., 0.])
 
@@ -220,7 +265,7 @@ class BBEnvBasis(gym.Env, BbSimulation, ABC):
         self.observe()
         self.iter = 0
         self.ema = self.state[1]
-        self.dema = self.state[1]
+        self.ema_ema = self.state[1]
         self.real_error = np.array([0., 0.])
         self.real_d_error = np.array([0., 0.])
 
@@ -229,7 +274,8 @@ class BBEnvBasis(gym.Env, BbSimulation, ABC):
     def observe(self):
         obs = np.zeros_like(self.observation)
         ema = self.alpha * self.state[1] + (1 - self.alpha) * self.ema
-        dema = self.alpha * ema + (1 - self.alpha) * self.dema
+        ema_ema = self.alpha * ema + (1 - self.alpha) * self.ema_ema
+        dema = (2. * ema) - ema_ema
         obs[0:2] = dema - self.state[0]
         real_error = self.state[1] - self.state[0]
         self.real_d_error = (real_error - self.real_error) / DT
@@ -240,7 +286,7 @@ class BBEnvBasis(gym.Env, BbSimulation, ABC):
 
         self.observation = obs
         self.ema = ema
-        self.dema = dema
+        self.ema_ema = ema_ema
 
     def scaled_obs(self):
         observation = np.zeros_like(self.observation)
@@ -278,7 +324,7 @@ class BBEnv(BBEnvBasis):
         self.step_bb(action * MAX_ANGLE)
         self.state = (self.state[0], self.ball.x, self.ball.d_x)
         self.observe()
-        reward: float = self.reward(self.real_error, self.real_d_error, action * MAX_ANGLE, self.w)
+        reward: float = self.reward(self.real_error, self.real_d_error, action, self.w)
 
         self.iter += 1
         done: bool = (self.iter >= self.max_iter) or np.any(np.abs(self.ball.x) > 2 * MAX_X)
@@ -299,7 +345,8 @@ class BBEnv(BBEnvBasis):
         for i in range(1, target_trajectory.shape[1]):
             trajectory[:, i] = self.state[1]
             ema = self.alpha * self.state[1] + (1 - self.alpha) * self.ema
-            dema = self.alpha * ema + (1 - self.alpha) * self.dema
+            ema_ema = self.alpha * ema + (1 - self.alpha) * self.ema_ema
+            dema = (2. * ema) - ema_ema
             error[:, i] = dema - target_trajectory[:, i]
             d_error: np.ndarray = (error[:, i] - error[:, i - 1]) / DT
             integral = integral + error[:, i] * DT
@@ -319,7 +366,7 @@ class BBEnv(BBEnvBasis):
 
             u[:, i] = model.act(torch.as_tensor(obs, dtype=torch.float32))
             self.ema = ema
-            self.dema = dema
+            self.ema_ema = ema_ema
 
             self.step(u[:, i])
 
@@ -360,7 +407,7 @@ class BBEnvPid(BBEnvBasis):
         self.step_bb(angles)
         self.state = (self.state[0], self.ball.x, self.ball.d_x)
         self.observe()
-        reward: float = self.reward(self.real_error, self.real_d_error, angles, self.w)
+        reward: float = self.reward(self.real_error, self.real_d_error, angles / MAX_ANGLE, self.w)
 
         self.iter += 1
         done: bool = (self.iter >= self.max_iter) or np.any(np.abs(self.ball.x) > 2 * MAX_X)
@@ -384,7 +431,8 @@ class BBEnvPid(BBEnvBasis):
         for i in range(1, target_trajectory.shape[1]):
             trajectory[:, i] = self.state[1]
             ema = self.alpha * self.state[1] + (1 - self.alpha) * self.ema
-            dema = self.alpha * ema + (1 - self.alpha) * self.dema
+            ema_ema = self.alpha * ema + (1 - self.alpha) * self.ema_ema
+            dema = (2. * ema) - ema_ema
             error[:, i] = dema - target_trajectory[:, i]
             d_error: np.ndarray = (error[:, i] - error[:, i - 1]) / DT
             integral = integral + error[:, i] * DT
@@ -427,7 +475,8 @@ class BenchmarkEvaluator(BBEnv):
 
         self.target_trajectory: np.ndarray = target_trajectory
 
-    def simulate(self, model: BallController, test=False) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, float]:
+    def simulate(self, model: BallController, test=False) -> Tuple[
+        np.ndarray, np.ndarray, np.ndarray, np.ndarray, float]:
         if test:
             self.test_reset()
         else:
@@ -442,7 +491,8 @@ class BenchmarkEvaluator(BBEnv):
         for i in range(1, self.target_trajectory.shape[1]):
             trajectory[:, i] = self.state[1]
             ema = self.alpha * self.state[1] + (1 - self.alpha) * self.ema
-            dema = self.alpha * ema + (1 - self.alpha) * self.dema
+            ema_ema = self.alpha * ema + (1 - self.alpha) * self.ema_ema
+            dema = (2. * ema) - ema_ema
             error[:, i] = dema - self.target_trajectory[:, i]
             error[:, i] = self.ball.x - self.target_trajectory[:, i]
             d_error: np.ndarray = (error[:, i] - error[:, i - 1]) / DT
