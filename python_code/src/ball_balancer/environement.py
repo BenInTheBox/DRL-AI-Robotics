@@ -441,7 +441,7 @@ class BBEnvPid(BBEnvBasis):
         reward: float = self.reward(self.real_error, self.real_d_error, angles / MAX_ANGLE, self.w)
 
         self.iter += 1
-        if self.iter % 200 == 0:
+        if self.iter % 202 == 0:
             self.state = (
                 np.array([np.random.uniform(- 0.8 * MAX_X, 0.8 * MAX_X), self.state[0][1]]), self.state[1],
                 self.state[2])
