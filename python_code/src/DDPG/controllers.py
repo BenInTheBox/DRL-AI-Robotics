@@ -1,3 +1,4 @@
+import numpy as np
 import torch
 
 from ..constants import BALL_ERROR_SCALING, BALL_D_ERROR_SCALING, BALL_INTEGRAL_ERROR_SCALING
@@ -32,6 +33,24 @@ class PidController(BallController):
 
     def forward(self, x):
         x = 20. * torch.tanh(self.predict(x))
+        return x
+
+
+class GeneticController(torch.nn.Module):
+    def __init__(self, n_inputs: int, n_hidden: int, n_output: int):
+        super(GeneticController, self).__init__()
+        self.h1 = torch.nn.Linear(n_inputs, n_hidden)
+        self.predict = torch.nn.Linear(n_hidden, n_output, bias=False)
+        #for p in self.parameters():
+            #p.data.fill_(-0.)
+
+    def act(self, observation: np.ndarray) -> float:
+        x = torch.as_tensor(observation, dtype=torch.float32)
+        return self.forward(x)[0].detach().numpy()
+
+    def forward(self, x):
+        x = torch.tanh(self.h1(x))
+        x = torch.tanh(self.predict(x))
         return x
 
 
@@ -75,6 +94,10 @@ class BlackBoxActor(torch.nn.Module):
         self.act_limit = act_limit
 
     def forward(self, obs):
+        # Return output from network scaled to action space limits.
+        return self.act_limit * self.pi(obs)
+
+    def act(self, obs):
         # Return output from network scaled to action space limits.
         return self.act_limit * self.pi(obs)
 

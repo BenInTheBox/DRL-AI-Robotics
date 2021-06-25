@@ -1,0 +1,46 @@
+{
+    "ac_kwargs":	{
+        "activation":	"ReLU",
+        "hidden_sizes":	[
+            50
+        ]
+    },
+    "act_noise":	0.1,
+    "actor_critic":	"PidActorCritic",
+    "batch_size":	500,
+    "env_fn":	"create_env",
+    "epochs":	250,
+    "exp_name":	"test",
+    "gamma":	0.99,
+    "logger":	{
+        "<spinup.utils.logx.EpochLogger object at 0x7f3fab6da5c0>":	{
+            "epoch_dict":	{},
+            "exp_name":	"test",
+            "first_row":	true,
+            "log_current_row":	{},
+            "log_headers":	[],
+            "output_dir":	"src/data/dyn_pid_controller/explo/le0.6_[50]_relu_0.99",
+            "output_file":	{
+                "<_io.TextIOWrapper name='src/data/dyn_pid_controller/explo/le0.6_[50]_relu_0.99/progress.txt' mode='w' encoding='UTF-8'>":	{
+                    "mode":	"w"
+                }
+            }
+        }
+    },
+    "logger_kwargs":	{
+        "exp_name":	"test",
+        "output_dir":	"src/data/dyn_pid_controller/explo/le0.6_[50]_relu_0.99"
+    },
+    "max_ep_len":	400,
+    "num_test_episodes":	20,
+    "pi_lr":	0.001,
+    "polyak":	0.995,
+    "q_lr":	0.001,
+    "replay_size":	75000,
+    "save_freq":	1,
+    "seed":	0,
+    "start_steps":	15000,
+    "steps_per_epoch":	1100,
+    "update_after":	1000,
+    "update_every":	100
+}

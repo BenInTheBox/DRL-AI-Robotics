@@ -13,7 +13,7 @@
     "exp_name":	"test",
     "gamma":	0.99,
     "logger":	{
-        "<spinup.utils.logx.EpochLogger object at 0x7f825e9af198>":	{
+        "<spinup.utils.logx.EpochLogger object at 0x7f825e395c50>":	{
             "epoch_dict":	{},
             "exp_name":	"test",
             "first_row":	true,
