@@ -34,7 +34,7 @@ def trajectory_gen(length: int) -> np.ndarray:
     return trajectory
 
 
-# Reward functions
+# Reward functions eroor
 def linear_e_reward(error: np.ndarray, d_error: np.ndarray, target: np.ndarray, w) -> float:
     return np.tanh(1. - (np.sum(np.abs(error)) * 30.) ** w)
 
@@ -891,6 +891,298 @@ class BBEnvPid1D(BBEnvBasis1D):
             u_t = np.sum(pid_weights * scaled_obs)
             u[i] = np.tanh(u_t) * MAX_ANGLE * self.last_error_sign
             self.step(pid_weights)
+            self.ema = ema
+            self.ema_ema = ema_ema
+
+        return trajectory, error, u, angle, loss(error), pid_kp, pid_kd, pid_ki
+
+
+class BBEnvBasisNoIntegral(gym.Env, BbSimulation, ABC):
+    """
+    Abstract class for the environement, it ensure having the same environement for the commun methods and allows easy modifications
+    """
+
+    def __init__(self, reward_func=linear_e_reward, reward_w=0.5):
+        super(BBEnvBasisNoIntegral, self).__init__()
+
+        # Actions, State, Observation
+        self.action_space = None
+        self.state_space = spaces.Tuple(spaces=[
+            spaces.Box(low=-0.8 * MAX_X, high=0.8 * MAX_X, shape=(2,), dtype=np.float32),  # Target position
+            spaces.Box(low=-0.8 * MAX_X, high=0.8 * MAX_X, shape=(2,), dtype=np.float32),  # Ball position
+            spaces.Box(low=-MAX_X / 30., high=MAX_X / 30., shape=(2,), dtype=np.float32),  # Ball speed
+        ])
+        self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(4,))
+
+        self.state = None
+        self.genetic_initial_state = self.state_space.sample()
+        self.observation = None
+        self.ema: np.ndarray = np.array([0., 0.])
+        self.ema_ema: np.ndarray = np.array([0., 0.])
+        self.real_error: np.ndarray = np.array([0., 0.])
+        self.real_d_error: np.ndarray = np.array([0., 0.])
+        self.alpha: float = 2. / (1. + FILTERING_PERIOD)
+
+        # Traing parameters
+        self.max_iter: int = int(10. // DT)
+        self.iter: int = 0
+        self.reward: Callable = reward_func
+        self.w = reward_w
+
+        self.reset()
+
+    def step(self, action):
+        return NotImplemented
+
+    def reset(self):
+        self.reset_bb()
+        self.state = self.state_space.sample()
+        self.state = (np.zeros((2,)), np.zeros((2,)), np.zeros((2,)))
+        self.observation = np.array([0.] * 4, dtype=np.float32)
+
+        self.ball.x = self.state[1]
+        self.ball.d_x = self.state[2]
+
+        self.observe()
+        self.iter = 0
+        self.ema = self.state[1]
+        self.ema_ema = self.state[1]
+        self.real_error = np.array([0., 0.])
+        self.real_d_error = np.array([0., 0.])
+
+        return self.scaled_obs()
+
+    def genetic_reset(self):
+        self.reset_bb()
+        self.observation = np.array([0.] * 4, dtype=np.float32)
+        self.state = self.genetic_initial_state
+
+        self.ball.x = self.genetic_initial_state[1]
+        self.ball.d_x = self.genetic_initial_state[2]
+
+        self.observe()
+        self.iter = 0
+        self.ema = self.state[1]
+        self.ema_ema = self.state[1]
+        self.real_error = np.array([0., 0.])
+        self.real_d_error = np.array([0., 0.])
+
+        return self.scaled_obs()
+
+    def genetic_generation_reset(self):
+        self.genetic_initial_state = self.state_space.sample()
+        print(self.genetic_initial_state[0])
+
+    def test_reset(self):
+        self.reset_bb()
+        zero_arr = np.zeros_like(self.state_space.sample()[0])
+        self.state = (zero_arr, zero_arr, zero_arr)
+        self.observation = np.array([0.] * 4, dtype=np.float32)
+
+        self.ball.x = self.state[1]
+        self.ball.d_x = self.state[2]
+
+        self.observe()
+        self.iter = 0
+        self.ema = self.state[1]
+        self.ema_ema = self.state[1]
+        self.real_error = np.array([0., 0.])
+        self.real_d_error = np.array([0., 0.])
+
+        return self.scaled_obs()
+
+    def observe(self):
+        obs = np.zeros_like(self.observation)
+        ema = self.alpha * self.state[1] + (1 - self.alpha) * self.ema
+        ema_ema = self.alpha * ema + (1 - self.alpha) * self.ema_ema
+        dema = (2. * ema) - ema_ema
+        obs[0:2] = dema - self.state[0]
+        real_error = self.state[1] - self.state[0]
+        self.real_d_error = (real_error - self.real_error) / DT
+        self.real_error = real_error
+        obs[2:4] = (obs[0:2] - self.observation[0:2]) / DT
+
+        self.observation = obs
+        self.ema = ema
+        self.ema_ema = ema_ema
+
+    def scaled_obs(self):
+        observation = np.zeros_like(self.observation)
+        observation[0:2] = self.observation[0:2] * BALL_ERROR_SCALING
+        observation[2:4] = self.observation[2:4] * BALL_D_ERROR_SCALING
+        return observation
+
+    def render(self, mode='human'):
+        pass
+
+
+class BBEnvNoIntegral(BBEnvBasisNoIntegral):
+    """
+    Ball balancer environement, obs -> motors angle
+    """
+
+    def __init__(self, reward_func=linear_e_reward, reward_w=0.5):
+        super(BBEnvNoIntegral, self).__init__()
+
+        # Actions, State, Observation
+        self.action_space = spaces.Box(low=-1., high=1., shape=(2,), dtype=np.float32)
+
+        # Traing parameters
+        self.max_iter: int = int(10. // DT)
+        self.iter: int = 0
+        self.reward: Callable = reward_func
+        self.w: float = reward_w
+
+        self.reset()
+
+        print(self.state)
+
+    def step(self, action):
+        self.step_bb(action * MAX_ANGLE)
+        self.state = (self.state[0], self.ball.x, self.ball.d_x)
+        self.observe()
+        reward: float = self.reward(self.real_error, self.real_d_error, action, self.w)
+
+        self.iter += 1
+        if self.iter % 200 == 0:
+            self.state = (
+                np.array([np.random.uniform(- 0.8 * MAX_X, 0.8 * MAX_X), self.state[0][1]]), self.state[1],
+                self.state[2])
+        if (self.iter + 100) % 200 == 0:
+            self.state = (
+                np.array([self.state[0][0], np.random.uniform(- 0.8 * MAX_X, 0.8 * MAX_X)]), self.state[1],
+                self.state[2])
+        done: bool = (self.iter >= self.max_iter)  # or np.any(np.abs(self.ball.x) > 2 * MAX_X)
+        info = {'state': self.state, 'observation': self.observation}
+
+        return self.scaled_obs(), reward, done, info
+
+    def simulate(self, model, target_trajectory: np.ndarray) -> Tuple[
+        np.ndarray, np.ndarray, np.ndarray, np.ndarray, float]:
+        self.test_reset()
+        trajectory = np.zeros_like(target_trajectory)
+        error = np.zeros_like(target_trajectory)
+        u = np.zeros_like(target_trajectory)
+        angle = np.zeros_like(target_trajectory)
+        error[:, 0] = target_trajectory[:, 0]
+
+        for i in range(1, target_trajectory.shape[1]):
+            trajectory[:, i] = self.state[1]
+            ema = self.alpha * self.state[1] + (1 - self.alpha) * self.ema
+            ema_ema = self.alpha * ema + (1 - self.alpha) * self.ema_ema
+            dema = (2. * ema) - ema_ema
+            error[:, i] = dema - target_trajectory[:, i]
+            d_error: np.ndarray = (error[:, i] - error[:, i - 1]) / DT
+
+            angle[0, i] = self.motor_x.angle
+            angle[1, i] = self.motor_y.angle
+
+            obs = np.array(
+                [error[0, i] * BALL_ERROR_SCALING, error[1, i] * BALL_ERROR_SCALING, d_error[0] * BALL_D_ERROR_SCALING,
+                 d_error[1] * BALL_D_ERROR_SCALING]
+            )
+            # print(obs)
+
+            u[:, i] = model.act(torch.as_tensor(obs, dtype=torch.float32))
+            self.ema = ema
+            self.ema_ema = ema_ema
+
+            self.step(u[:, i])
+
+        u = MAX_ANGLE * u
+
+        return trajectory, error, u, angle, loss(error)
+
+
+class BBEnvPidNoIntegral(BBEnvBasisNoIntegral):
+    """
+    Ball balancer environement for dynamic PID, obs -> pid weights
+    """
+
+    def __init__(self, reward_func=linear_e_reward, reward_w=0.5):
+        super(BBEnvPidNoIntegral, self).__init__()
+
+        # Actions, State, Observation
+        self.action_space = spaces.Box(low=0., high=2.5, shape=(4,), dtype=np.float32)
+
+        self.state = None
+        self.observation = None
+
+        # Traing parameters
+        self.max_iter: int = int(10. // DT)
+        self.iter: int = 0
+        self.reward: Callable = reward_func
+        self.w: float = reward_w
+
+        self.reset()
+
+        print(self.state)
+
+    def step(self, action):
+        obs = self.scaled_obs()
+        u_x = np.sum(action[[0, 2]] * obs[[0, 2]])
+        u_y = np.sum(action[[1, 3]] * obs[[1, 3]])
+        angles = np.tanh(np.array([u_x, u_y])) * MAX_ANGLE
+        self.step_bb(angles)
+        self.state = (self.state[0], self.ball.x, self.ball.d_x)
+        self.observe()
+        reward: float = self.reward(self.real_error, self.real_d_error, angles / MAX_ANGLE, self.w)
+
+        self.iter += 1
+        if self.iter % 202 == 0:
+            self.state = (
+                np.array([np.random.uniform(- 0.8 * MAX_X, 0.8 * MAX_X), self.state[0][1]]), self.state[1],
+                self.state[2])
+        if (self.iter + 100) % 200 == 0:
+            self.state = (
+                np.array([self.state[0][0], np.random.uniform(- 0.8 * MAX_X, 0.8 * MAX_X)]), self.state[1],
+                self.state[2])
+        done: bool = (self.iter >= self.max_iter) or np.any(np.abs(self.ball.x) > 2 * MAX_X)
+        info = {'state': self.state, 'observation': self.observation}
+
+        return self.scaled_obs(), reward, done, info
+
+    def simulate(self, model, target_trajectory: np.ndarray) -> Tuple[
+        np.ndarray, np.ndarray, np.ndarray, np.ndarray, float, np.ndarray, np.ndarray, np.ndarray]:
+        self.test_reset()
+        trajectory = np.zeros_like(target_trajectory)
+        error = np.zeros_like(target_trajectory)
+        u = np.zeros_like(target_trajectory)
+        pid_kp = np.zeros_like(target_trajectory)
+        pid_kd = np.zeros_like(target_trajectory)
+        pid_ki = np.zeros_like(target_trajectory)
+        angle = np.zeros_like(target_trajectory)
+        error[:, 0] = target_trajectory[:, 0]
+
+        for i in range(1, target_trajectory.shape[1]):
+            trajectory[:, i] = self.state[1]
+            ema = self.alpha * self.state[1] + (1 - self.alpha) * self.ema
+            ema_ema = self.alpha * ema + (1 - self.alpha) * self.ema_ema
+            dema = (2. * ema) - ema_ema
+            error[:, i] = dema - target_trajectory[:, i]
+            d_error: np.ndarray = (error[:, i] - error[:, i - 1]) / DT
+
+            angle[0, i] = self.motor_x.angle
+            angle[1, i] = self.motor_y.angle
+
+            obs = np.array(
+                [error[0, i], error[1, i], d_error[0], d_error[1]]
+            )
+            self.observation = obs
+            scaled_obs = self.scaled_obs()
+
+            pid_weights = model.act(torch.as_tensor(scaled_obs, dtype=torch.float32))
+            pid_kp[0, i] = pid_weights[0]
+            pid_kp[1, i] = pid_weights[1]
+            pid_kd[0, i] = pid_weights[2]
+            pid_kd[1, i] = pid_weights[3]
+            pid_ki[0, i] = 0.
+            pid_ki[1, i] = 0.
+
+            self.step(pid_weights)
+            u_x = np.sum(pid_weights[[0, 2]] * scaled_obs[[0, 2]])
+            u_y = np.sum(pid_weights[[1, 3]] * scaled_obs[[1, 3]])
+            u[:, i] = np.tanh(np.array([u_x, u_y])) * MAX_ANGLE
             self.ema = ema
             self.ema_ema = ema_ema
 
