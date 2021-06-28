@@ -1,7 +1,7 @@
 import numpy as np
 import torch
 
-from ..constants import BALL_ERROR_SCALING, BALL_D_ERROR_SCALING, BALL_INTEGRAL_ERROR_SCALING
+from ..constants import BALL_ERROR_SCALING, BALL_D_ERROR_SCALING, BALL_INTEGRAL_ERROR_SCALING, MAX_ANGLE
 from spinup.algos.pytorch.ddpg.core import mlp
 
 
@@ -32,7 +32,7 @@ class PidController(BallController):
             p.data.fill_(-0.)
 
     def forward(self, x):
-        x = 20. * torch.tanh(self.predict(x))
+        x = MAX_ANGLE * torch.tanh(self.predict(x))
         return x
 
 

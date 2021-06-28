@@ -8,13 +8,13 @@
     },
     "act_noise":	0.1,
     "actor_critic":	"MLPActorCritic",
-    "batch_size":	100,
+    "batch_size":	500,
     "env_fn":	"create_env",
     "epochs":	250,
     "exp_name":	"test",
     "gamma":	0.99,
     "logger":	{
-        "<spinup.utils.logx.EpochLogger object at 0x7f5d1e1aa208>":	{
+        "<spinup.utils.logx.EpochLogger object at 0x7fb125e10ac8>":	{
             "epoch_dict":	{},
             "exp_name":	"test",
             "first_row":	true,
@@ -43,5 +43,5 @@
     "start_steps":	15000,
     "steps_per_epoch":	1100,
     "update_after":	1000,
-    "update_every":	50
+    "update_every":	100
 }

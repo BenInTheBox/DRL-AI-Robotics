@@ -240,8 +240,9 @@ class BBEnvBasis(gym.Env, BbSimulation, ABC):
     def reset(self):
         self.reset_bb()
         self.state = self.state_space.sample()
-        self.state = (np.zeros((2,)), np.zeros((2,)), np.zeros((2,)))
-        self.observation = np.array([0.] * 6, dtype=np.float32)
+        self.observation = self.observation_space.sample()
+        #self.state = (np.zeros((2,)), np.zeros((2,)), np.zeros((2,)))
+        #self.observation = np.array([0.] * 6, dtype=np.float32)
 
         self.ball.x = self.state[1]
         self.ball.d_x = self.state[2]
@@ -350,11 +351,11 @@ class BBEnv(BBEnvBasis):
         reward: float = self.reward(self.real_error, self.real_d_error, action, self.w)
 
         self.iter += 1
-        if self.iter % 200 == 0:
+        if self.iter == 200:
             self.state = (
                 np.array([np.random.uniform(- 0.8 * MAX_X, 0.8 * MAX_X), self.state[0][1]]), self.state[1],
                 self.state[2])
-        if (self.iter + 100) % 200 == 0:
+        if self.iter == 300:
             self.state = (
                 np.array([self.state[0][0], np.random.uniform(- 0.8 * MAX_X, 0.8 * MAX_X)]), self.state[1],
                 self.state[2])
@@ -441,11 +442,11 @@ class BBEnvPid(BBEnvBasis):
         reward: float = self.reward(self.real_error, self.real_d_error, angles / MAX_ANGLE, self.w)
 
         self.iter += 1
-        if self.iter % 202 == 0:
+        if self.iter == 100:
             self.state = (
                 np.array([np.random.uniform(- 0.8 * MAX_X, 0.8 * MAX_X), self.state[0][1]]), self.state[1],
                 self.state[2])
-        if (self.iter + 100) % 200 == 0:
+        if self.iter == 200:
             self.state = (
                 np.array([self.state[0][0], np.random.uniform(- 0.8 * MAX_X, 0.8 * MAX_X)]), self.state[1],
                 self.state[2])
@@ -937,7 +938,7 @@ class BBEnvBasisNoIntegral(gym.Env, BbSimulation, ABC):
     def reset(self):
         self.reset_bb()
         self.state = self.state_space.sample()
-        self.state = (np.zeros((2,)), np.zeros((2,)), np.zeros((2,)))
+        #self.state = (np.zeros((2,)), np.zeros((2,)), np.zeros((2,)))
         self.observation = np.array([0.] * 4, dtype=np.float32)
 
         self.ball.x = self.state[1]
@@ -1052,7 +1053,7 @@ class BBEnvNoIntegral(BBEnvBasisNoIntegral):
             self.state = (
                 np.array([self.state[0][0], np.random.uniform(- 0.8 * MAX_X, 0.8 * MAX_X)]), self.state[1],
                 self.state[2])
-        done: bool = (self.iter >= self.max_iter)  # or np.any(np.abs(self.ball.x) > 2 * MAX_X)
+        done: bool = (self.iter >= self.max_iter)  or np.any(np.abs(self.ball.x) > 2 * MAX_X)
         info = {'state': self.state, 'observation': self.observation}
 
         return self.scaled_obs(), reward, done, info
@@ -1129,14 +1130,14 @@ class BBEnvPidNoIntegral(BBEnvBasisNoIntegral):
         reward: float = self.reward(self.real_error, self.real_d_error, angles / MAX_ANGLE, self.w)
 
         self.iter += 1
-        if self.iter % 202 == 0:
+        """if self.iter % 202 == 0:
             self.state = (
                 np.array([np.random.uniform(- 0.8 * MAX_X, 0.8 * MAX_X), self.state[0][1]]), self.state[1],
                 self.state[2])
         if (self.iter + 100) % 200 == 0:
             self.state = (
                 np.array([self.state[0][0], np.random.uniform(- 0.8 * MAX_X, 0.8 * MAX_X)]), self.state[1],
-                self.state[2])
+                self.state[2])"""
         done: bool = (self.iter >= self.max_iter) or np.any(np.abs(self.ball.x) > 2 * MAX_X)
         info = {'state': self.state, 'observation': self.observation}
 
