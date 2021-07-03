@@ -71,17 +71,17 @@ def linear_de_penality_reward(error: np.ndarray, d_error: np.ndarray, target: np
 
 
 def test_reward():
-    error = np.arange(-MAX_X, 0., 0.001)
-    w = np.arange(0.3, 0.9, 0.1)
-    target = np.arange(0., 2., 0.02)
-    d_error = np.arange(-MAX_X, MAX_X, 0.002)
+    error: np.ndarray = np.arange(-MAX_X, 0., 0.001)
+    w: np.ndarray = np.arange(0.3, 0.9, 0.1)
+    target: np.ndarray = np.arange(0., 2., 0.02)
+    d_error: np.ndarray = np.arange(-MAX_X, MAX_X, 0.002)
     x_error, y_error = np.meshgrid(error, error)
     x_error_sum, angle_sum = np.meshgrid(error, target)
     x_d_error_sum, angle_sum_d = np.meshgrid(d_error, target)
 
     # Linear reward
-    z = [np.array([linear_e_reward(np.array([x, x]), 0., 0., weight) for x in error]) for weight in w]
-    Z = np.array([[linear_e_reward(np.array([x, y]), 0., 0., 0.6) for x, y in zip(x_row, y_row)] for x_row, y_row in
+    z: list = [np.array([linear_e_reward(np.array([x, x]), 0., 0., weight) for x in error]) for weight in w]
+    Z: np.ndarray = np.array([[linear_e_reward(np.array([x, y]), 0., 0., 0.6) for x, y in zip(x_row, y_row)] for x_row, y_row in
                   zip(x_error, y_error)])
 
     plt.figure()
@@ -104,7 +104,7 @@ def test_reward():
     plt.show()
 
     # Linear penality
-    Z = np.array(
+    Z: np.ndarray = np.array(
         [[linear_e_reward_penality(np.array([x, x]), 0., np.array([y, y]), 0.3) for x, y in zip(x_row, y_row)] for
          x_row, y_row in
          zip(x_error_sum, angle_sum)])
@@ -120,9 +120,9 @@ def test_reward():
     plt.show()
 
     # Quadratic reward
-    w = np.arange(0.8, 1.5, 0.2)
-    z = [np.array([quadratic_e_reward(np.array([x, x]), 0., 0., weight) for x in error]) for weight in w]
-    Z = np.array([[quadratic_e_reward(np.array([x, y]), 0., 0., 1.) for x, y in zip(x_row, y_row)] for x_row, y_row in
+    w: np.ndarray = np.arange(0.8, 1.5, 0.2)
+    z: list = [np.array([quadratic_e_reward(np.array([x, x]), 0., 0., weight) for x in error]) for weight in w]
+    Z: np.ndarray = np.array([[quadratic_e_reward(np.array([x, y]), 0., 0., 1.) for x, y in zip(x_row, y_row)] for x_row, y_row in
                   zip(x_error, y_error)])
 
     plt.figure()
@@ -145,7 +145,7 @@ def test_reward():
     plt.show()
 
     # Quadratic penality
-    Z = np.array(
+    Z: np.ndarray = np.array(
         [[quadratic_e_reward_penality(np.array([x, x]), 0., np.array([y, y]), 0.3) for x, y in zip(x_row, y_row)] for
          x_row, y_row in
          zip(x_error_sum, angle_sum)])
@@ -161,9 +161,9 @@ def test_reward():
     plt.show()
 
     # De reward
-    e = np.array([0.5, 0.5])
-    w = np.arange(5, 35, 10)
-    z = [np.array([linear_de_reward(e, np.array([x, x]), 0., weight) for x in d_error]) for weight in w]
+    e: np.ndarray = np.array([0.5, 0.5])
+    w: np.ndarray = np.arange(5, 35, 10)
+    z: list = [np.array([linear_de_reward(e, np.array([x, x]), 0., weight) for x in d_error]) for weight in w]
 
     plt.figure()
     for weight, ts in zip(w, z):
@@ -175,7 +175,7 @@ def test_reward():
     plt.show()
 
     # De penality
-    Z = np.array(
+    Z: np.ndarray = np.array(
         [[linear_de_penality_reward(e, np.array([x, x]), np.array([y, y]), 0.3) for x, y in zip(x_row, y_row)] for
          x_row, y_row in
          zip(x_d_error_sum, angle_sum_d)])
@@ -192,7 +192,7 @@ def test_reward():
 
 
 # Environement creation
-def env_fn_gen(env, reward_fn, reward_weight):
+def env_fn_gen(env, reward_fn, reward_weight) -> Callable:
     def create_env():
         return env(reward_func=reward_fn, reward_w=reward_weight)
 
@@ -204,7 +204,6 @@ class BBEnvBasis(gym.Env, BbSimulation, ABC):
     """
     Abstract class for the environement, it ensure having the same environement for the commun methods and allows easy modifications
     """
-
     def __init__(self, reward_func=linear_e_reward, reward_w=0.5):
         super(BBEnvBasis, self).__init__()
 
@@ -230,7 +229,7 @@ class BBEnvBasis(gym.Env, BbSimulation, ABC):
         self.max_iter: int = int(10. // DT)
         self.iter: int = 0
         self.reward: Callable = reward_func
-        self.w = reward_w
+        self.w: float = reward_w
 
         self.reset()
 

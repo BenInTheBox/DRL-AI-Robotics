@@ -1,10 +1,9 @@
 import os
-import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
 
-def analyse_training(controller_type='black_box_controller', reward_type='e_r'):
+def analyse_training(controller_type: str = 'black_box_controller', reward_type: str = 'e_r'):
     controllers = os.listdir('src/data/{}/{}'.format(controller_type, reward_type))
     logs = [pd.read_csv('src/data/{}/{}/{}/progress.txt'.format(controller_type, reward_type, controller), sep='\t') for
             controller in controllers]

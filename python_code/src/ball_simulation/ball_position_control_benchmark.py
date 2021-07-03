@@ -29,19 +29,19 @@ def callback_generation(ga_instance):
     print("Fitness    = {fitness}".format(fitness=ga_instance.best_solution()[1]))
 
 
-def train_ball_controller(target_trajectory: np.ndarray, nb_generation: int, population: int):
+def train_ball_controller(target_trajectory: np.ndarray, nb_generation: int, population: int) -> PidController:
     model = PidController(3, 1)
 
     torch_ga = torchga.TorchGA(model=model,
                                num_solutions=population)
 
-    num_parents_mating = 5
+    num_parents_mating: int = 5
     initial_population = torch_ga.population_weights
-    parent_selection_type = "sss"
-    crossover_type = "single_point"
-    mutation_type = "random"
-    mutation_percent_genes = 40
-    keep_parents = 3
+    parent_selection_type: str = "sss"
+    crossover_type: str = "single_point"
+    mutation_type: str = "random"
+    mutation_percent_genes: int = 40
+    keep_parents: int = 3
 
     ga_instance = pygad.GA(num_generations=nb_generation,
                            num_parents_mating=num_parents_mating,
