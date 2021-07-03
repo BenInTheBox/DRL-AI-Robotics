@@ -2,7 +2,7 @@ import numpy as np
 
 from ..motor_simulation.simulation import MotorSimulation
 from ..motor_simulation.pid import Pid
-from ..ball_simulation.simulation import BallSimulation
+from ..ball_simulation.simulation import BallSimulation, BallSimulation1D
 from ..constants import DT
 
 
@@ -42,9 +42,45 @@ class BbSimulation:
         motor_x_u: float = self.motor_pid_x.step(np.array([self.error[0], self.d_error[0], self.i_error[0]]))
         motor_y_u: float = self.motor_pid_y.step(np.array([self.error[1], self.d_error[1], self.i_error[1]]))
 
-        self.ball.step(self.motor_x.angle, self.motor_y.angle)
         self.motor_x.step(motor_x_u)
         self.motor_y.step(motor_y_u)
+        self.ball.step(self.motor_x.angle, self.motor_y.angle)
+
+
+class BbSimulation1D:
+
+    def __init__(self):
+        # Motors
+        self.motor: MotorSimulation = MotorSimulation()
+        self.motor_pid = Pid()
+
+        # Ball
+        self.ball: BallSimulation1D = BallSimulation1D()
+
+        # Motors error
+        self.error: float = 0.
+        self.d_error: float = 0.
+        self.i_error: float = 0.
+
+    def reset_bb(self):
+        self.motor.reset_motor()
+
+        self.ball.reset_ball()
+
+        self.error: float = 0.
+        self.d_error: float = 0.
+        self.i_error: float = 0.
+
+    def step_bb(self, target: float = 0.):
+        error = target - self.motor.angle
+        self.d_error = (error - self.error) / DT
+        self.i_error += error * DT
+        self.error = error
+
+        motor_u: float = self.motor_pid.step(np.array([self.error, self.d_error, self.i_error]))
+
+        self.motor.step(motor_u)
+        self.ball.step(self.motor.angle)
 
 
 def loss(error: np.ndarray) -> float:
